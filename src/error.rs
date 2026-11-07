@@ -1,3 +1,5 @@
+use wgpu::MapRangeError;
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
@@ -8,6 +10,7 @@ pub enum Error {
     PipelinesEmpty,
     PipelineNotReady,
     EncoderIsNone,
+    MapError(MapRangeError),
 }
 
 impl std::error::Error for Error {}
@@ -23,6 +26,7 @@ impl std::fmt::Display for Error {
             Error::InvalidStep(step) => write!(f, "Invalid step `{step}`."),
             Error::PipelineNotReady => write!(f, "Pipeline isn't ready yet."),
             Error::EncoderIsNone => write!(f, "The command encoder hasn't been initialized."),
+            Error::MapError(err) => write!(f, "Map error: {err}"),
         }
     }
 }

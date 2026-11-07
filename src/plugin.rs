@@ -2,33 +2,37 @@ use std::marker::PhantomData;
 
 use bevy::{
     prelude::*,
-    render::renderer::{RenderAdapter, RenderDevice},
+    render::{render_resource::PipelineCache, renderer::RenderDevice},
 };
 
-use crate::{
-    extract_shaders, pipeline_cache::PipelineCache, traits::ComputeWorker, worker::AppComputeWorker,
-};
+use crate::{extract_shaders, traits::ComputeWorker, worker::AppComputeWorker};
 
 /// The main plugin. Always include it if you want to use `bevy_app_compute`
 pub struct AppComputePlugin;
+
+fn process_pipeline_queue_system(mut cache: ResMut<PipelineCache>) {
+    cache.process_queue();
+}
 
 impl Plugin for AppComputePlugin {
     fn build(&self, _app: &mut App) {}
 
     fn finish(&self, app: &mut App) {
         let render_device = app.world().resource::<RenderDevice>().clone();
-        let render_adapter = app.world().resource::<RenderAdapter>().clone();
+        // let render_adapter = app.world().resource::<RenderAdapter>().clone();
 
         app.configure_sets(Update, BevyEasyComputeSet::ExtractPipelines)
             .configure_sets(PostUpdate, BevyEasyComputePostUpdateSet::ExecuteCompute);
 
-        app.insert_resource(PipelineCache::new(render_device, render_adapter, true))
-            .add_systems(PreUpdate, extract_shaders)
-            .add_systems(
-                Update,
-                PipelineCache::process_pipeline_queue_system
-                    .in_set(BevyEasyComputeSet::ExtractPipelines),
-            );
+        app.insert_resource(PipelineCache::new(
+            render_device,
+            /* render_adapter, */ true,
+        ))
+        .add_systems(PreUpdate, extract_shaders)
+        .add_systems(
+            Update,
+            process_pipeline_queue_system.in_set(BevyEasyComputeSet::ExtractPipelines),
+        );
     }
 }
 
@@ -72,7 +76,7 @@ impl<W: ComputeWorker> Plugin for AppComputeWorkerPlugin<W> {
                 Update,
                 AppComputeWorker::<W>::extract_pipelines
                     .in_set(BevyEasyComputeSet::ExtractPipelines)
-                    .after(PipelineCache::process_pipeline_queue_system),
+                    .after(process_pipeline_queue_system),
             )
             .add_systems(
                 PostUpdate,
